@@ -1,0 +1,43 @@
+const express = require('express');
+const { exec } = require('yt-dlp-exec');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send({ status: 'success', message: 'Backend Server is Running!' });
+});
+
+app.get('/video', async (req, res) => {
+    const videoUrl = req.query.url;
+    if (!videoUrl) {
+        return res.status(400).send({ error: 'YouTube URL required' });
+    }
+
+    try {
+        const output = await exec(videoUrl, {
+            dumpSingleJson: true,
+            noWarnings: true,
+            noCallHome: true,
+            preferFreeFormats: true,
+            youtubeSkipDashManifest: true
+        });
+
+        // Extracting playable formats
+        res.json({
+            title: output.title,
+            thumbnail: output.thumbnail,
+            duration: output.duration,
+            formats: output.formats.map(f => ({
+                quality: f.format_note,
+                url: f.url,
+                ext: f.ext
+            }))
+        });
+    } catch (error) {
+        res.status(500).send({ error: 'Failed to fetch video stream', details: error.message });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
